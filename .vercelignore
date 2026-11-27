@@ -1,0 +1,14 @@
+.venv
+.env
+data
+mlruns
+tests
+dags
+docker
+docker-compose.yml
+scripts
+.github
+**/__pycache__
+.pytest_cache
+*.egg-info
+*.db

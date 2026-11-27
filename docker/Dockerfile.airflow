@@ -1,0 +1,9 @@
+FROM apache/airflow:2.10.5-python3.11
+
+USER airflow
+COPY --chown=airflow:root pyproject.toml /opt/m2/pyproject.toml
+COPY --chown=airflow:root src /opt/m2/src
+COPY --chown=airflow:root configs /opt/m2/configs
+RUN pip install --no-cache-dir "/opt/m2[ml]"
+
+ENV M2_CONFIG_DIR=/opt/m2/configs

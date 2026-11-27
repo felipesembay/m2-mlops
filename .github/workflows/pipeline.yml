@@ -1,0 +1,42 @@
+# Orquestrador de produção: mesmo encadeamento das DAGs do Airflow
+# (ingestão -> treino/previsão -> monitoramento -> re-otimização se houver gatilho -> publicação).
+name: pipeline
+
+on:
+  schedule:
+    - cron: "0 9 * * *"   # 06:00 em Brasília
+  workflow_dispatch:
+    inputs:
+      modo:
+        description: "diario | forcar | bootstrap"
+        type: choice
+        options: [diario, forcar, bootstrap]
+        default: diario
+
+concurrency:
+  group: pipeline
+  cancel-in-progress: false
+
+jobs:
+  rodar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+      MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+      MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install ".[ml]"
+      - name: Pipeline
+        run: |
+          case "${{ inputs.modo || 'diario' }}" in
+            bootstrap) python scripts/rodar_pipeline.py --bootstrap ;;
+            forcar)    python scripts/rodar_pipeline.py --forcar ;;
+            *)         python scripts/rodar_pipeline.py ;;
+          esac

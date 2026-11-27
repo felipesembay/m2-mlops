@@ -1,0 +1,36 @@
+{
+  "modelo": "RandomForest",
+  "metodo": "BayesianOptimization",
+  "horizonte": 3,
+  "melhores_parametros": {
+    "max_depth": 5,
+    "max_features": 1.0,
+    "min_samples_leaf": 4,
+    "min_samples_split": 10,
+    "n_estimators": 300
+  },
+  "rmse_cv": 1.1628619874497514,
+  "tempo_s": 39.78262854100012,
+  "features": [
+    "lag_0",
+    "lag_1",
+    "lag_2",
+    "lag_3",
+    "lag_6",
+    "lag_9",
+    "lag_12",
+    "lag_18",
+    "lag_24",
+    "media_3",
+    "std_3",
+    "media_6",
+    "std_6",
+    "media_12",
+    "std_12",
+    "media_24",
+    "std_24",
+    "diff_1",
+    "diff_12",
+    "mes_alvo"
+  ]
+}

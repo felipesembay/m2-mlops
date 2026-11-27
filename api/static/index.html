@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>M2 Brasil — Previsões do crescimento mensal</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<header>
+  <div>
+    <h1>M2 Brasil — previsão do crescimento mensal</h1>
+    <p class="sub">BCB/SGS 27810 · variação % m/m · modelos do artigo reajustados todo mês numa janela de 120 meses</p>
+  </div>
+  <div id="status-geral" class="pill">carregando…</div>
+</header>
+
+<main>
+  <!-- ============================================================ PROJEÇÃO -->
+  <section>
+    <h2>Projeção</h2>
+    <p class="nota" id="proj-origem"></p>
+    <div class="controles">
+      <label>Modelo
+        <select id="sel-modelo">
+          <option value="melhor">Melhor modelo por horizonte (recomendado)</option>
+          <option value="1">Campeão h=1 — STL + ETS</option>
+          <option value="3">Campeão h=3 — Random Forest (OB)</option>
+          <option value="6">Campeão h=6 — SARIMA(3,0,0)(0,1,1)12</option>
+          <option value="12">Campeão h=12 — Random Forest (OB)</option>
+          <option value="benchmark">Média sazonal (benchmark)</option>
+        </select>
+      </label>
+      <label>Meses à frente
+        <span class="meses">
+          <span class="tabs" id="tabs-meses"></span>
+          <input type="number" id="inp-meses" min="1" max="24" value="12">
+        </span>
+      </label>
+    </div>
+    <p class="nota" id="proj-explica"></p>
+    <div id="proj-resumo" class="cards"></div>
+    <div class="chart-box tall"><canvas id="chart-proj"></canvas></div>
+    <details>
+      <summary>Tabela mês a mês</summary>
+      <table id="tab-proj"><thead><tr>
+        <th>Mês</th><th>Previsão (% m/m)</th><th>Faixa indicativa 95%</th><th>Modelo usado</th>
+        <th>Acumulado</th><th>M2 projetado</th>
+      </tr></thead><tbody></tbody></table>
+    </details>
+  </section>
+
+  <!-- ============================================================ SÉRIE -->
+  <section>
+    <div class="titulo-linha">
+      <h2>Série histórica completa</h2>
+      <div class="tabs" id="tabs-periodo"></div>
+    </div>
+    <p class="nota" id="serie-nota"></p>
+    <div class="chart-box tall"><canvas id="chart-serie"></canvas></div>
+  </section>
+
+  <!-- ============================================================ BACKTEST -->
+  <section>
+    <div class="titulo-linha">
+      <h2>Previsto × realizado</h2>
+      <div class="tabs" id="tabs-h"></div>
+    </div>
+    <p class="nota">Cada ponto é uma previsão feita <b>h meses antes</b> do mês-alvo, comparada com o valor que o BCB divulgou depois.</p>
+    <div class="chart-box"><canvas id="chart-hist"></canvas></div>
+  </section>
+
+  <!-- ============================================================ MONITORAMENTO -->
+  <section>
+    <div class="titulo-linha">
+      <h2>Monitoramento</h2>
+      <div class="tabs" id="tabs-mon"></div>
+    </div>
+    <div class="explica">
+      <p><b>O que é o número em cada cartão?</b> É o <b>RMSE relativo R</b>: o erro do modelo campeão dividido pelo erro da
+        média sazonal (o benchmark do artigo), nos <span id="mon-janela">12</span> meses mais recentes com valor realizado.</p>
+      <ul>
+        <li><b>R &lt; 1</b>: o modelo erra menos que a média sazonal. Ex.: <b>0,90</b> = erra <b>10% menos</b>.</li>
+        <li><b>R = 1</b>: empate. O modelo não agrega nada ao benchmark.</li>
+        <li><b>R &gt; 1</b>: o modelo erra mais que a média sazonal. Ex.: <b>1,20</b> = erra <b>20% mais</b>.</li>
+      </ul>
+      <p><b>Quando retreinar?</b> <span id="mon-regra"></span></p>
+    </div>
+    <div id="mon-cards" class="cards"></div>
+    <div class="chart-box"><canvas id="chart-mon"></canvas></div>
+    <p class="nota" id="mon-legenda"></p>
+  </section>
+
+  <section class="duas">
+    <div>
+      <h2>Registro de modelos (MLflow)</h2>
+      <table id="tab-modelos"><thead><tr>
+        <th>h</th><th>Modelo registrado</th><th>Spec</th><th>Versão</th><th>Origem</th>
+      </tr></thead><tbody></tbody></table>
+    </div>
+    <div>
+      <h2>Eventos de retreino</h2>
+      <table id="tab-eventos"><thead><tr>
+        <th>Data</th><th>h</th><th>Antigo → novo</th><th>RMSE</th><th>Status</th>
+      </tr></thead><tbody></tbody></table>
+    </div>
+  </section>
+</main>
+<footer>Fonte: Banco Central do Brasil (SGS 27810). Erros em pontos percentuais (p.p.).</footer>
+<script src="/static/app.js"></script>
+</body>
+</html>

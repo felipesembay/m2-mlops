@@ -1,0 +1,103 @@
+# Stack MLOps do M2: Postgres, MLflow, Airflow (LocalExecutor) e API/front.
+#   cp .env.example .env && docker-compose up -d --build
+#   docker-compose run --rm api python scripts/bootstrap.py
+x-m2-env: &m2-env
+  M2_DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-m2}:${POSTGRES_PASSWORD:-m2}@postgres:5432/m2
+  MLFLOW_TRACKING_URI: http://mlflow:5000
+
+x-airflow-env: &airflow-env
+  <<: *m2-env
+  AIRFLOW__CORE__EXECUTOR: LocalExecutor
+  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER:-m2}:${POSTGRES_PASSWORD:-m2}@postgres:5432/airflow
+  AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:-}
+  AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+  AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
+  AIRFLOW__CORE__DEFAULT_TIMEZONE: America/Sao_Paulo
+  AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "false"
+  _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_ADMIN_USER:-admin}
+  _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:-admin}
+
+x-airflow: &airflow
+  build: { context: ., dockerfile: docker/Dockerfile.airflow }
+  image: m2-airflow:latest
+  user: "${AIRFLOW_UID:-50000}:0"
+  environment: *airflow-env
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - airflow-logs:/opt/airflow/logs
+  depends_on:
+    postgres: { condition: service_healthy }
+    mlflow: { condition: service_started }
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-m2}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-m2}
+      POSTGRES_DB: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-m2}"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+
+  mlflow:
+    build: { context: ., dockerfile: docker/Dockerfile.mlflow }
+    image: m2-mlflow:latest
+    command: >
+      mlflow server --host 0.0.0.0 --port 5000
+      --backend-store-uri postgresql+psycopg2://${POSTGRES_USER:-m2}:${POSTGRES_PASSWORD:-m2}@postgres:5432/mlflow
+      --serve-artifacts --artifacts-destination /mlartifacts
+    volumes:
+      - mlartifacts:/mlartifacts
+    ports: ["${MLFLOW_PORT:-5000}:5000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: unless-stopped
+
+  # Migra o banco do Airflow e cria o usuário admin (_AIRFLOW_DB_MIGRATE / _AIRFLOW_WWW_USER_CREATE
+  # são tratados pelo entrypoint oficial da imagem).
+  airflow-init:
+    <<: *airflow
+    command: version
+    environment:
+      <<: *airflow-env
+      _AIRFLOW_DB_MIGRATE: "true"
+      _AIRFLOW_WWW_USER_CREATE: "true"
+    restart: "no"
+
+  airflow-webserver:
+    <<: *airflow
+    command: webserver
+    ports: ["${AIRFLOW_PORT:-8080}:8080"]
+    depends_on:
+      airflow-init: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  airflow-scheduler:
+    <<: *airflow
+    command: scheduler
+    depends_on:
+      airflow-init: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  api:
+    build: { context: ., dockerfile: docker/Dockerfile.api }
+    image: m2-api:latest
+    environment:
+      <<: *m2-env
+      M2_SERVIR_MLFLOW: "1"   # /api/prever/{h} carrega o modelo do MLflow
+    ports: ["${API_PORT:-8000}:8000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      mlflow: { condition: service_started }
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  mlartifacts:
+  airflow-logs:

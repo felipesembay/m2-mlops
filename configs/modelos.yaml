@@ -1,0 +1,44 @@
+# Configuração dos modelos e do monitoramento.
+# Valores de referência: Artigo_previsao_M2_ABNT.pdf (Tabelas 6-11).
+
+serie:
+  codigo_sgs: 27810          # M2 - saldo fim de período (BCB/SGS)
+  janela: 120                # janela deslizante (meses) usada no artigo
+
+# Campeões selecionados na validação 2021-03..2025-12 (Tabela 11).
+# Usados apenas quando o MLflow ainda não tem alias "champion".
+campeoes:
+  1:  {spec: STL_ETS,        rmse_validacao: 0.61034}
+  3:  {spec: RF_Bayesian,    rmse_validacao: 0.58822, params_file: rf_h3.json}
+  6:  {spec: SARIMA_300_011, rmse_validacao: 0.54272}
+  12: {spec: RF_Bayesian,    rmse_validacao: 0.49459, params_file: rf_h12.json}
+
+benchmark:
+  spec: Media_Sazonal
+  janela: 120                # mesma janela da validação/Tabela 10 (null = todo o histórico, como no teste 2026)
+
+# Candidatos avaliados na re-otimização (re-seleção do campeão).
+candidatos_reotimizacao:
+  - Media_Sazonal
+  - SARIMA_300_011
+  - ETS_ANA
+  - STL_ETS
+  - RF_Bayesian
+
+reotimizacao:
+  meses_validacao: 58        # mesmo tamanho da validação do artigo
+  bo_n_iter: 12              # orçamento do BayesSearchCV (igual ao notebook)
+  ganho_minimo_pct: 2.0      # só troca o campeão se o RMSE cair >= 2% (evita trocar por ruído)
+
+monitoramento:
+  janela_meses: 12           # RMSE móvel sobre os últimos 12 meses-alvo
+  n_minimo: 6                # mínimo de erros para avaliar
+  carencia_meses: 6          # após uma re-otimização, não dispara de novo no mesmo h por 6 meses
+  gatilho_a:                 # perde para o benchmark de forma persistente
+    rmse_relativo_max: 1.0
+    meses_consecutivos: 3
+  gatilho_b:                 # degradação absoluta vs validação
+    fator_rmse_validacao: 1.25
+  alertas:
+    vies_abs_max: 0.30       # p.p.
+    zscore_max: 3.0          # nova observação vs janela de 120 meses
